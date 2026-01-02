@@ -2,6 +2,15 @@ name: docker-publish
 
 on:
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag to build (e.g., v4.9.99-graytip)'
+        required: true
+        default: 'v4.9.99-graytip'
+
+env:
+  NAPCAT_REPO: yukmakoto/NapCatQQ
+  DOCKER_REPO: yukmakoto/napcat-docker
 
 jobs:
   publish-dockerhub:
@@ -11,7 +20,7 @@ jobs:
         uses: actions/checkout@v4
       - name: Get artifacts
         run: |
-          bash get_artifacts.sh ${{ secrets.GITHUB_TOKEN }} $(curl -sSL -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" "https://api.github.com/repos/NapNeko/NapCatQQ/releases/latest" | jq -r '.tag_name')
+          bash get_artifacts.sh ${{ secrets.GITHUB_TOKEN }} ${{ github.event.inputs.version }} ${{ env.NAPCAT_REPO }}
       - name: Set up Docker buildx
         uses: docker/setup-buildx-action@v3
       - name: Login to Docker Hub
@@ -19,18 +28,14 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      # Fork from https://github.com/koishijs/boilerplate/blob/master/.github/workflows/docker.yml
       - name: Run buildx and push
-        env:
-          DOCKER_REPO: mlikiowa/napcat-docker
-          GITHUB_REPO: NapNeko/NapCatQQ
         run: |
-          TAG=$(curl -sSL -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" "https://api.github.com/repos/NapNeko/NapCatQQ/releases/latest" | jq -r '.tag_name')
+          TAG=${{ github.event.inputs.version }}
           docker buildx build \
             --output "type=image,push=true" \
             --platform linux/amd64,linux/arm64 \
-            --tag ${DOCKER_REPO}:$TAG \
-            --tag ${DOCKER_REPO}:latest \
+            --tag ${{ env.DOCKER_REPO }}:$TAG \
+            --tag ${{ env.DOCKER_REPO }}:latest \
             --file ./Dockerfile \
             .
       - name: Docker Hub logout
